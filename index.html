@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+
+            // Simple detection for mobile devices
+            const isMobile = /android|iphone|ipad|ipod|blackberry|windows phone/i.test(userAgent);
+
+            if (isMobile) {
+                window.location.replace('mobile.html'); // Redirect to mobile version
+            } else {
+                window.location.replace('desktop.html'); // Redirect to desktop version
+            }
+        });
+    </script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1a1a2e; /* Matches your previous background */
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <p>Loading the best experience for your.</p>
+</body>
+</html>

@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Chat Visualizer - Lakshit Khurana</title> <link rel="icon" href="./static/dp.png" type="image/png" sizes="32x32"></title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- dat.gui is not strictly needed for core functionality if you replace its usage with direct HTML controls -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script> -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* General Reset and Body Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif; /* Changed to Inter as per instructions */
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+            color: #ffffff;
+            overflow: hidden; /* Prevent body scroll */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Main Container */
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Section */
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center; /* Center header content */
+        }
+
+        .title {
+            font-size: 2.5em;
+            font-weight: 700;
+            background: linear-gradient(45deg, #00ff88, #00ccff, #ff0099);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            text-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+            display: flex; /* Use flexbox to align logo and text */
+            align-items: center; /* Vertically align items */
+            justify-content: center; /* Center horizontally */
+        }
+
+        .title img {
+        height: 1em; /* Adjust height relative to font-size of title (e.g., makes it same height as text) */
+        margin-right: 10px; /* Add some space between the logo and the text */
+        vertical-align: middle; /* Ensures the image aligns nicely with the text baseline */
+         /* You can add more styles like max-width, padding, etc., if needed */
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap; /* Allow wrapping on small screens */
+            margin-bottom: 15px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            border-radius: 25px;
+            padding: 2px;
+            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .file-input-wrapper:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 255, 136, 0.4);
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 12px 30px;
+            background: #1a1a2e;
+            color: white;
+            border-radius: 23px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn {
+            background: linear-gradient(45deg, #ff0099, #ff6b35);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 32px rgba(255, 0, 153, 0.2);
+        }
+
+        .action-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(255, 0, 153, 0.4);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Word Count Slider Styles */
+        #wordCountContainer {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%; /* Ensure it takes full width of its parent */
+            padding: 0 20px; /* Add padding for smaller screens */
+        }
+
+        #wordCountSlider {
+            width: 90%; /* Adjusted for better mobile fit */
+            max-width: 500px; /* Max width for larger screens */
+            height: 8px;
+            background: #3a3a5a;
+            border-radius: 4px;
+            outline: none;
+            -webkit-appearance: none;
+            margin-top: 10px;
+            transition: background 0.3s ease; /* Smooth transition for background color */
+        }
+
+        #wordCountSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(45deg, #00ccff, #00ff88);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(0, 204, 255, 0.5);
+            transition: background 0.3s ease;
+        }
+        
+        #wordCountSlider::-webkit-slider-thumb:hover {
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+        }
+
+        #wordCountValue {
+            font-weight: bold;
+            color: #00ff88;
+            margin-top: 5px;
+        }
+
+        /* Word Count Warning */
+        #wordCountWarning {
+            font-size: 0.9em;
+            margin-top: 10px;
+            padding: 8px 15px;
+            border-radius: 10px;
+            display: none; /* Hidden by default */
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .word-count-green {
+            background-color: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .word-count-yellow {
+            background-color: rgba(255, 200, 0, 0.1);
+            color: #ffc800;
+            border: 1px solid rgba(255, 200, 0, 0.3);
+        }
+
+        .word-count-red {
+            background-color: rgba(255, 0, 0, 0.1);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 0, 0, 0.3);
+        }
+
+        /* Controls Panel and Toggle Styles */
+        .controls-panel {
+            position: absolute;
+            top: 20px; /* Adjusted top for better mobile placement */
+            right: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: none;
+            max-width: 250px; /* Limit width for better mobile fit */
+        }
+
+        .controls-panel h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .control-item {
+            margin-bottom: 15px;
+        }
+
+        .control-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .control-slider {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .control-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #00ff88;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        /* Toggle Switch CSS */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #00ff88;
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px #00ff88;
+        }
+
+        input:checked + .slider:before {
+            -webkit-transform: translateX(20px);
+            -ms-transform: translateX(20px);
+            transform: translateX(20px);
+        }
+
+        /* Fullscreen Button */
+        #fullscreenToggleBtn {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 1000;
+            background: linear-gradient(45deg, #00ccff, #00ff88);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(0, 204, 255, 0.2);
+            display: none;
+        }
+
+        #fullscreenToggleBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 204, 255, 0.4);
+        }
+
+        /* Network Stats */
+        .network-stats {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 10px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #00ff88;
+            font-size: 0.9em;
+            display: none;
+            white-space: nowrap; /* Prevent wrapping */
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            flex-direction: column;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #00ff88;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            color: #00ff88;
+            font-size: 1.2em;
+        }
+
+        /* Canvas Container */
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Instructions */
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            display: none;
+        }
+
+        /* Error Message */
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2000;
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            color: #ff6b6b;
+            display: none;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        /* Custom Message Box (for alerts) */
+        .custom-message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 33, 62, 0.95); /* Darker background */
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            z-index: 3000;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            max-width: 90%;
+            width: 400px;
+            text-align: center;
+            color: #ffffff;
+            display: none; /* Hidden by default */
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .custom-message-box p {
+            margin-bottom: 20px;
+            font-size: 1.1em;
+            line-height: 1.5;
+        }
+
+        .custom-message-box button {
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            border: none;
+            padding: 10px 25px;
+            border-radius: 20px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.2);
+        }
+
+        .custom-message-box button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 255, 136, 0.4);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -60%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+
+        /* Fullscreen Specific Styles */
+        .fullscreen-active #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 999;
+        }
+        
+        /* Hide non-essential UI elements in fullscreen, keep fullscreen button visible */
+        .fullscreen-active .header,
+        .fullscreen-active .controls-panel,
+        .fullscreen-active .network-stats,
+        .fullscreen-active .instructions {
+            opacity: 0;
+            pointer-events: none; /* Disable interaction */
+            transition: opacity 0.3s ease;
+        }
+        
+        .fullscreen-active #fullscreenToggleBtn {
+            opacity: 1; /* Keep fullscreen button visible */
+            display: block; /* Ensure it's displayed */
+        }
+
+        /* How to Get JSON Section */
+        .how-to-get-json {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px auto; /* Center it below header */
+            max-width: 700px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: left;
+            display: none; /* Hidden by default, shown via button */
+            position: relative; /* For positioning the close button */
+        }
+
+        .how-to-get-json h2 {
+            color: #00ccff;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            text-align: center;
+        }
+
+        /* Scrollable content for how-to-get-json */
+        .how-to-get-json-content-scroll {
+            max-height: 70vh; /* Limit height to enable scrolling */
+            overflow-y: auto; /* Enable vertical scrolling */
+            padding-right: 15px; /* Space for scrollbar */
+            scrollbar-width: thin; /* Firefox */
+            scrollbar-color: #00ff88 transparent; /* Firefox */
+        }
+
+        .how-to-get-json-content-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .how-to-get-json-content-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .how-to-get-json-content-scroll::-webkit-scrollbar-thumb {
+            background-color: #00ff88;
+            border-radius: 4px;
+            border: 2px solid transparent;
+        }
+
+        .how-to-get-json ol {
+            list-style: none; /* Remove default numbering */
+            counter-reset: step-counter; /* Initialize counter */
+            padding-left: 0;
+        }
+
+        .how-to-get-json ol li {
+            margin-bottom: 10px;
+            padding-left: 30px; /* Space for custom number */
+            position: relative;
+            font-size: 0.95em;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .how-to-get-json ol li::before {
+            counter-increment: step-counter;
+            content: counter(step-counter) ".";
+            position: absolute;
+            left: 0;
+            top: 0;
+            font-weight: bold;
+            color: #00ff88;
+            font-size: 1.1em;
+        }
+
+        .how-to-get-json p {
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        /* Close button for how-to-get-json */
+        .how-to-get-json .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .how-to-get-json .close-btn:hover {
+            color: #ff0099;
+        }
+
+        /* Footer and Social Media */
+        .footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.6);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .social-links a {
+            color: #00ccff;
+            margin: 0 10px;
+            font-size: 1.5em;
+            transition: color 0.3s ease, transform 0.3s ease;
+        }
+
+        .social-links a:hover {
+            color: #00ff88;
+            transform: translateY(-3px);
+        }
+
+        /* Media Queries for Responsiveness */
+        @media (max-width: 768px) {
+            .title {
+                font-size: 1.8em;
+            }
+            
+            .subtitle {
+                font-size: 0.9em;
+            }
+
+            .upload-section {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .file-input-label, .action-btn {
+                padding: 10px 25px;
+                font-size: 0.9em;
+            }
+
+            #wordCountContainer {
+                padding: 0 10px;
+            }
+
+            #wordCountSlider {
+                width: 95%;
+            }
+
+            .controls-panel {
+                top: auto; /* Allow it to position relative to bottom */
+                bottom: 20px; /* Position at bottom right */
+                right: 20px;
+                left: auto; /* Reset left */
+                max-width: calc(100% - 40px); /* Adjust width for mobile */
+                padding: 15px;
+            }
+
+            #fullscreenToggleBtn {
+                top: 15px;
+                left: 15px;
+                padding: 8px 15px;
+                font-size: 0.8em;
+            }
+
+            .network-stats, .instructions {
+                font-size: 0.8em;
+                padding: 8px 15px;
+                bottom: 60px; /* Adjust for footer */
+            }
+
+            .how-to-get-json {
+                margin: 10px; /* Adjust margin for mobile */
+                padding: 15px;
+            }
+
+            .how-to-get-json h2 {
+                font-size: 1.3em;
+            }
+
+            .how-to-get-json ol li {
+                font-size: 0.85em;
+            }
+
+            .footer {
+                padding: 10px;
+                font-size: 0.8em;
+            }
+
+            .social-links a {
+                font-size: 1.3em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .title {
+                font-size: 1.5em;
+            }
+
+            .subtitle {
+                font-size: 0.8em;
+            }
+
+            .header {
+                padding: 15px 10px;
+            }
+
+            .upload-section {
+                gap: 10px;
+            }
+
+            .file-input-label, .action-btn {
+                padding: 8px 20px;
+                font-size: 0.8em;
+            }
+
+            #wordCountContainer {
+                padding: 0 5px;
+            }
+
+            #wordCountSlider {
+                width: 98%;
+            }
+
+            .controls-panel {
+                padding: 10px;
+                font-size: 0.9em;
+            }
+
+            .control-item {
+                margin-bottom: 10px;
+            }
+
+            #fullscreenToggleBtn {
+                padding: 6px 12px;
+                font-size: 0.7em;
+            }
+
+            .network-stats, .instructions {
+                font-size: 0.75em;
+                padding: 6px 12px;
+                bottom: 50px; /* Further adjust for smaller footer */
+            }
+            
+            .how-to-get-json h2 {
+                font-size: 1.1em;
+            }
+            .how-to-get-json ol li {
+                font-size: 0.8em;
+            }
+
+            .footer {
+                font-size: 0.75em;
+            }
+            .social-links a {
+                font-size: 1.1em;
+            }
+        }
+
+        /* Styles for horizontal image scroll container */
+        .how-to-get-json .image-scroll-container {
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+            scrollbar-width: none; /* Hide scrollbar for Firefox */
+            -ms-overflow-style: none; /* Hide scrollbar for IE/Edge */
+            height: 480px; /* Increased height significantly (4x of original 120px) */
+            margin-top: 25px; /* Adjusted margin-top for better spacing */
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            display: flex; /* Use flex to align images side-by-side */
+            align-items: center; /* Vertically center images */
+            scroll-snap-type: x mandatory; /* Snap to images */
+            padding: 15px; /* Increased padding inside the scroll container */
+        }
+
+        .how-to-get-json .image-scroll-container::-webkit-scrollbar {
+            display: none; /* Hide scrollbar for Webkit browsers */
+        }
+
+        .how-to-get-json .image-scroll-container img {
+            width: auto; /* Allow image to determine its width */
+            height: 100%; /* Fill the height of the container */
+            max-height: 450px; /* Set a max-height to fit within the container with padding */
+            max-width: none; /* Override any max-width to allow horizontal scrolling */
+            border-radius: 6px;
+            object-fit: contain; /* Ensure the image fits without cropping */
+            margin-right: 25px; /* Increased space between images */
+            scroll-snap-align: center; /* Snap to the center of each image for better visibility */
+        }
+
+        .how-to-get-json .image-scroll-container img:last-child {
+            margin-right: 0; /* No margin on the last image */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title"><img src="./static/logo.png" alt="Logo"> ChatGPT 3D Visualizer</h1>
+            <p class="subtitle">Transform your conversation data into an interactive 3D network</p>
+            
+            <div class="upload-section">
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" accept=".json">
+                    <label for="fileInput" class="file-input-label">
+                        📁 Choose conversations.json
+                    </label>
+                </div>
+                <button id="analyzeBtn" class="action-btn" disabled>
+                    ✨ Generate 3D Web
+                </button>
+                <button id="howToGetJsonBtn" class="action-btn">
+                    ❓ How to get JSON
+                </button>
+            </div>
+            <div id="wordCountContainer">
+                <div class="control-label">Number of Words to Display: <span id="wordCountValue">400</span></div>
+                <input type="range" class="control-slider" id="wordCountSlider" min="100" max="5000" step="100" value="400">
+                <div id="wordCountWarning" class="word-count-green">
+                    Optimal performance. Enjoy the visualization!
+                </div>
+            </div>
+        </div>
+
+        <div class="how-to-get-json" id="howToGetJsonSection">
+            <button class="close-btn" id="closeHowToGetJsonCrossBtn">&times;</button>
+            <h2>Export ChatGPT Data (Same steps for Desktop)</h2>
+            <div class="how-to-get-json-content-scroll">
+                <ol>
+                    <li>
+                        Open ChatGPT (chatgpt.com). Tap profile icon (bottom left)
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step1.png" alt="Step 1: Open ChatGPT">
+                        </div>
+                    </li>
+                    <li>
+                        Select "Settings"
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step2.png" alt="Step 2: Tap profile icon">
+                        </div>
+                    </li>
+                    <li>
+                        Tap "Data Controls"
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step3.png" alt="Step 3: Select Settings">
+                        </div>
+                    </li>
+                    <li>
+                        Tap "Export" in front of "Export data"
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step4.png" alt="Step 4: Tap Data Controls">
+                        </div>
+                    </li>
+                    <li>
+                        Tap "Confirm export"
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step5.png" alt="Step 5: Tap Export data">
+                        </div>
+                    </li>
+                    <li>
+                        Check email within 24 hours
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step6.png" alt="Step 6: Confirm export">
+                        </div>
+                    </li>
+                    <li>
+                        Download data export
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step7.png" alt="Step 7: Check email">
+                        </div>
+                    </li>
+                    <li>
+                        Open the downloaded folder
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step8.png" alt="Step 8: Download and extract ZIP">
+                        </div>
+                    </li>
+                    <li>
+                        Get your conversations.json here
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step9.png" alt="Step 9: Upload conversations.json">
+                        </div>
+                    </li>
+                </ol>
+            </div>
+            <button id="closeHowToGetJsonBtn" class="action-btn" style="width: 100%;">
+                Got it!
+            </button>
+        </div>
+
+        <div class="loading-overlay" id="loadingOverlay">
+            <div>
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Analyzing your conversations...</div>
+            </div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="custom-message-box" id="customMessageBox">
+            <p id="customMessageText"></p>
+            <button id="customMessageCloseBtn">OK</button>
+        </div>
+
+        <div class="controls-panel" id="controlsPanel">
+            <h3>🎮 Controls</h3>
+            <div class="control-item">
+                <div class="control-label">Rotation Speed</div>
+                <input type="range" class="control-slider" id="rotationSpeed" min="0" max="0.02" step="0.001" value="0.003">
+            </div>
+            <div class="control-item">
+                <div class="control-label">Node Size</div>
+                <input type="range" class="control-slider" id="nodeSize" min="0.5" max="3" step="0.1" value="0.8">
+            </div>
+            <div class="control-item">
+                <div class="control-label">Connection Opacity</div>
+                <input type="range" class="control-slider" id="connectionOpacity" min="0.1" max="1" step="0.1" value="0.15">
+            </div>
+            <div class="control-item">
+                <label class="control-label">
+                    <span>Auto Rotation</span>
+                    <label class="switch">
+                        <input type="checkbox" id="autoRotationToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </label>
+            </div>
+        </div>
+
+        <button id="fullscreenToggleBtn" class="action-btn">
+            [ ] Fullscreen
+        </button>
+
+        <div class="instructions" id="instructions">
+            🖱️ Mouse: Rotate view | 🔍 Scroll: Zoom | Click text to see word details
+        </div>
+
+        <div class="network-stats" id="networkStats">
+            📊 Displaying top 400 words from your conversations
+        </div>
+
+        <div id="canvas-container"></div>
+
+        <div class="footer">
+            <span>Built with ❤️ by Lakshit Khurana (Lucky)</span>
+            <div class="social-links">
+                <a href="https://www.instagram.com/_lakshit_khurana?igsh=MXU4dHI2NG95cTR6dQ%3D%3D&utm_source=qr" target="_blank" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, nodes = [], links = [], nodeObjects = [], currentLinkObject = null, currentDotsObject = null;
+        let rotationSpeed = 0.003;
+        let nodeSizeFactor = 0.8;
+        let connectionOpacity = 0.15;
+        const dotOpacity = 0.4;
+        let autoRotation = true;
+
+        let isMouseDown = false;
+        let mouseX = 0, mouseY = 0;
+
+        // UI Element References
+        const fileInput = document.getElementById('fileInput');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const errorMessage = document.getElementById('errorMessage');
+        const instructions = document.getElementById('instructions');
+        const networkStatsDisplay = document.getElementById('networkStats'); 
+        const wordCountSlider = document.getElementById('wordCountSlider'); 
+        const wordCountValueDisplay = document.getElementById('wordCountValue');
+        const wordCountWarning = document.getElementById('wordCountWarning'); // New warning element
+        const controlsPanel = document.getElementById('controlsPanel');
+        const autoRotationToggle = document.getElementById('autoRotationToggle');
+        const fullscreenToggleBtn = document.getElementById('fullscreenToggleBtn');
+        const canvasContainer = document.getElementById('canvas-container');
+        const howToGetJsonBtn = document.getElementById('howToGetJsonBtn'); // New button
+        const howToGetJsonSection = document.getElementById('howToGetJsonSection'); // New section
+        const closeHowToGetJsonBtn = document.getElementById('closeHowToGetJsonBtn'); // New button
+        const closeHowToGetJsonCrossBtn = document.getElementById('closeHowToGetJsonCrossBtn'); // New cross button
+        const customMessageBox = document.getElementById('customMessageBox'); // Custom message box
+        const customMessageText = document.getElementById('customMessageText');
+        const customMessageCloseBtn = document.getElementById('customMessageCloseBtn');
+
+        // Function to show custom message box
+        function showCustomMessage(message) {
+            customMessageText.textContent = message;
+            customMessageBox.style.display = 'block';
+        }
+
+        // Function to hide custom message box
+        function hideCustomMessage() {
+            customMessageBox.style.display = 'none';
+        }
+
+        // Event listener for custom message box close button
+        customMessageCloseBtn.addEventListener('click', hideCustomMessage);
+
+        // Initial display for word count and warning
+        updateWordCountDisplay(wordCountSlider.value);
+
+        fileInput.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                analyzeBtn.disabled = false;
+                analyzeBtn.textContent = '✨ Generate 3D Web';
+            }
+        });
+
+        analyzeBtn.addEventListener('click', analyzeFile);
+
+        // Word count slider listener
+        wordCountSlider.addEventListener('input', function() {
+            updateWordCountDisplay(this.value);
+        });
+
+        function updateWordCountDisplay(count) {
+            wordCountValueDisplay.textContent = count;
+            networkStatsDisplay.textContent = `📊 Displaying top ${count} words from your conversations`;
+
+            // Update warning message and color
+            wordCountWarning.style.display = 'block'; // Ensure it's visible
+            wordCountWarning.className = ''; // Reset classes
+
+            if (count <= 800) {
+                wordCountWarning.classList.add('word-count-green');
+                wordCountWarning.textContent = 'Optimal performance. Enjoy the visualization!';
+            } else if (count > 800 && count <= 1500) {
+                wordCountWarning.classList.add('word-count-yellow');
+                wordCountWarning.textContent = 'Moderate performance impact. May be slower on older devices.';
+            } else { // > 1500
+                wordCountWarning.classList.add('word-count-red');
+                wordCountWarning.textContent = 'High performance impact! May cause significant slowdowns or crashes on some devices.';
+            }
+        }
+
+        // Auto rotation toggle listener
+        autoRotationToggle.addEventListener('change', function() {
+            autoRotation = this.checked;
+        });
+
+        // How to get JSON button listeners
+        howToGetJsonBtn.addEventListener('click', () => {
+            howToGetJsonSection.style.display = 'block';
+            // Optionally hide other UI elements when instructions are shown
+            document.querySelector('.header').style.display = 'none';
+            controlsPanel.style.display = 'none';
+            fullscreenToggleBtn.style.display = 'none';
+            instructions.style.display = 'none';
+            networkStatsDisplay.style.display = 'none';
+        });
+
+        // Function to close the how-to-get-json section
+        function closeHowToGetJsonSection() {
+            howToGetJsonSection.style.display = 'none';
+            // Restore other UI elements
+            document.querySelector('.header').style.display = 'block';
+            // Only show controls/fullscreen if visualization is active
+            if (scene && renderer) { // Check if visualization is loaded
+                controlsPanel.style.display = 'block';
+                fullscreenToggleBtn.style.display = 'block';
+                instructions.style.display = 'block';
+                networkStatsDisplay.style.display = 'block';
+            }
+        }
+
+        closeHowToGetJsonBtn.addEventListener('click', closeHowToGetJsonSection);
+        closeHowToGetJsonCrossBtn.addEventListener('click', closeHowToGetJsonSection);
+
+
+        // Fullscreen toggle listener
+        fullscreenToggleBtn.addEventListener('click', () => {
+            // Check if the browser supports fullscreen API
+            if (document.fullscreenEnabled) {
+                if (!document.fullscreenElement) {
+                    // Request fullscreen on the document body or a specific container
+                    // Using document.documentElement ensures it works broadly
+                    document.documentElement.requestFullscreen().catch(err => {
+                        showCustomMessage(`Error attempting to enable full-screen mode: ${err.message} (${err.name}). Please try again or check browser settings.`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            } else {
+                showCustomMessage("Fullscreen mode is not supported by your browser.");
+            }
+        });
+
+        // Listen for fullscreen change events to adjust renderer size and UI visibility
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                document.body.classList.add('fullscreen-active');
+                fullscreenToggleBtn.textContent = '[ ] Exit Fullscreen'; // Change button text
+                // Ensure canvas resizes to new fullscreen dimensions
+                if (camera && renderer) {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                }
+            } else {
+                document.body.classList.remove('fullscreen-active');
+                fullscreenToggleBtn.textContent = '[ ] Fullscreen'; // Change button text back
+                // Revert canvas size
+                if (camera && renderer) {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                }
+                // Restore UI visibility after exiting fullscreen
+                if (scene && renderer) { // Only if visualization is active
+                    controlsPanel.style.display = 'block';
+                    fullscreenToggleBtn.style.display = 'block';
+                    instructions.style.display = 'block';
+                    networkStatsDisplay.style.display = 'block';
+                }
+            }
+        });
+
+        // Listen for ESC key to exit fullscreen (optional, browser usually handles it)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+        });
+
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        function showLoading() {
+            loadingOverlay.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            loadingOverlay.style.display = 'none';
+        }
+
+        // --- START CLIENT-SIDE ANALYSIS LOGIC (REPLACING PYTHON BACKEND) ---
+
+        // Hardcoded English stop words (based on NLTK's list + custom ones from your Python code)
+        const stopWords = new Set([
+            'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', "you're", "you've", "you'll", "you'd", 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', "she's", 'her', 'hers', 'herself', 'it', "it's", 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 'this', 'that', "that'll", 'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', "don't", 'should', "should've", 'now', 'd', 'll', 'm', 'o', 're', 've', 'y', 'ain', 'aren', "aren't", 'couldn', "couldn't", 'didn', "didn't", 'doesn', "doesn't", 'hadn', "hadn't", 'hasn', "hasn't", 'haven', "haven't", 'isn', "isn't", 'ma', 'mightn', "mightn't", 'mustn', "mustn't", 'needn', "needn't", 'shan', "shan't", 'shouldn', "shouldn't", 'wasn', "wasn't", 'weren', "weren't", 'won', "won't", 'wouldn', "wouldn't",
+            // Custom words from your app.py
+            'would', 'could', 'should', 'really', 'like', 'think',
+            'know', 'want', 'need', 'good', 'great', 'thanks', 'thank',
+            'please', 'sorry', 'yes', 'no', 'ok', 'okay', 'sure',
+            'chatgpt', 'gpt', 'ai', 'assistant', 'help', 'can', 'will' // 'can' and 'will' are duplicated, but set handles it.
+        ]);
+
+        async function extractWordsFromConversations(conversationsData, numWordsLimit) {
+            let allText = "";
+            let conversationCount = 0;
+            let messageCount = 0;
+
+            try {
+                for (const conversation of conversationsData) {
+                    if (conversation.mapping) {
+                        conversationCount++;
+                        for (const msgId in conversation.mapping) {
+                            const messageData = conversation.mapping[msgId];
+                            if (messageData.message) {
+                                const message = messageData.message;
+                                messageCount++;
+
+                                if (message.content) {
+                                    const contentType = message.content.content_type;
+                                    const parts = message.content.parts;
+
+                                    if (parts) {
+                                        if (contentType === 'text' || contentType === 'code') {
+                                            allText += parts.join(" ") + " ";
+                                        } else if (contentType === 'multimodal_text') {
+                                            for (const part of parts) {
+                                                if (typeof part === 'string') {
+                                                    allText += part + " ";
+                                                } else if (typeof part === 'object' && part.text) {
+                                                    allText += part.text + " ";
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Clean and tokenize the text
+                // Use a simple regex for tokenization, equivalent to word_tokenize for this purpose
+                const cleanedText = allText.toLowerCase().replace(/[^a-z\s]/g, '');
+                const tokens = cleanedText.match(/\b\w+\b/g) || []; // Use match to get all words
+
+                // Filter out stop words and non-alphabetic tokens
+                const filteredWords = tokens.filter(word => {
+                    return /^[a-z]+$/.test(word) && !stopWords.has(word);
+                });
+
+                // Get word frequencies
+                const wordFreq = {};
+                for (const word of filteredWords) {
+                    wordFreq[word] = (wordFreq[word] || 0) + 1;
+                }
+
+                // Sort words by frequency and take the top N
+                const sortedWords = Object.entries(wordFreq).sort(([, freqA], [, freqB]) => freqB - freqA);
+                const mostCommonWords = sortedWords.slice(0, numWordsLimit);
+
+                return {
+                    total_conversations: conversationCount,
+                    total_messages: messageCount,
+                    total_words: filteredWords.length,
+                    unique_words: Object.keys(wordFreq).length,
+                    words: mostCommonWords
+                };
+            } catch (e) {
+                console.error(`Error in extractWordsFromConversations: ${e}`);
+                throw e;
+            }
+        }
+
+
+        async function analyzeFile() {
+            const file = fileInput.files[0];
+            if (!file) {
+                showError('Please select a file first');
+                return;
+            }
+
+            if (!file.name.endsWith('.json')) {
+                showError('Please upload a JSON file.');
+                return;
+            }
+
+            showLoading();
+
+            const numWordsToDisplay = parseInt(wordCountSlider.value, 10);
+            
+            try {
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const conversationsData = JSON.parse(event.target.result);
+                        const analysis = await extractWordsFromConversations(conversationsData, numWordsToDisplay);
+
+                        const nodes = [];
+                        const links = [];
+
+                        // Node creation
+                        for (let i = 0; i < analysis.words.length; i++) {
+                            const [word, freq] = analysis.words[i];
+                            nodes.push({
+                                id: i,
+                                word: word,
+                                frequency: freq,
+                                size: Math.min(Math.max(freq * 1.5, 8), 25), // Adjusted size calculation if needed
+                                group: i % 12 // Keep original grouping logic
+                            });
+                        }
+
+                        // Link creation (retain the random link generation logic)
+                        const randomSeed = 42; // Consistent seed for reproducible results
+                        // Simple seeded random number generator
+                        // This is a basic implementation. For production, consider a more robust library.
+                        Math.seedrandom = function(seed) {
+                            var x = Math.sin(seed || Date.now()) * 10000;
+                            return function() {
+                                x = (x + 0.5) * 17 % 1;
+                                return x;
+                            };
+                        };
+                        let rand = Math.seedrandom(randomSeed); // Removed 'new' keyword
+
+
+                        for (let i = 0; i < nodes.length; i++) {
+                            const currentFreq = nodes[i].frequency;
+                            const numConnections = Math.min(Math.max(Math.floor(currentFreq / 5), 3), 15);
+
+                            let targets = [];
+                            // Connect to nearby nodes (in sorted frequency list)
+                            for (let j = Math.max(0, i - 5); j < Math.min(nodes.length, i + 6); j++) {
+                                if (j !== i) {
+                                    targets.push(j);
+                                }
+                            }
+
+                            // Add random targets from the remaining available nodes
+                            const availableTargets = nodes.map((_, idx) => idx).filter(idx => idx !== i && !targets.includes(idx));
+                            // Shuffle and pick
+                            for (let k = availableTargets.length - 1; k > 0; k--) {
+                                const j = Math.floor(rand() * (k + 1));
+                                [availableTargets[k], availableTargets[j]] = [availableTargets[j], availableTargets[k]];
+                            }
+                            const randomTargets = availableTargets.slice(0, Math.min(numConnections - targets.length, availableTargets.length));
+                            targets.push(...randomTargets);
+
+                            // Ensure unique targets and limit to numConnections
+                            targets = Array.from(new Set(targets)).slice(0, numConnections);
+
+                            for (const target of targets) {
+                                const freqDiff = Math.abs(nodes[i].frequency - nodes[target].frequency);
+                                const maxFreq = Math.max(nodes[i].frequency, nodes[target].frequency);
+                                const strength = maxFreq > 0 ? Math.max(0.2, 1.0 - (freqDiff / maxFreq)) : 0.5;
+
+                                links.push({
+                                    source: i,
+                                    target: target,
+                                    strength: strength
+                                });
+                            }
+                        }
+
+                        create3DVisualization(nodes, links);
+                        instructions.style.display = 'block';
+                        networkStatsDisplay.style.display = 'block';
+                        controlsPanel.style.display = 'block';
+                        fullscreenToggleBtn.style.display = 'block';
+                        howToGetJsonSection.style.display = 'none';
+                        document.querySelector('.header').style.display = 'block';
+
+                    } catch (parseError) {
+                        console.error('Error parsing JSON or analyzing data:', parseError);
+                        showError('Error processing JSON file. Please ensure it\'s a valid `conversations.json` from ChatGPT. Details: ' + parseError.message);
+                    } finally {
+                        hideLoading();
+                    }
+                };
+                reader.onerror = (error) => {
+                    console.error('File reading error:', error);
+                    showError('Error reading file. Please try again.');
+                    hideLoading();
+                };
+                reader.readAsText(file);
+
+            } catch (error) {
+                console.error('Overall analysis error:', error);
+                showError('An unexpected error occurred during analysis: ' + error.message);
+                hideLoading();
+            }
+        }
+
+        // --- END CLIENT-SIDE ANALYSIS LOGIC ---
+
+
+        function create3DVisualization(nodeData, linkData) {
+            nodes = nodeData;
+            links = linkData;
+
+            // Clear existing scene and dispose resources
+            const container = document.getElementById('canvas-container');
+            if (renderer) {
+                // Remove old canvas if exists
+                if (renderer.domElement.parentNode === container) {
+                    container.removeChild(renderer.domElement);
+                }
+                // Dispose of old scene objects to free memory
+                if (scene) {
+                    scene.children.forEach(object => {
+                        if (object.geometry) object.geometry.dispose();
+                        if (object.material) {
+                            if (Array.isArray(object.material)) {
+                                object.material.forEach(material => material.dispose());
+                            } else {
+                                object.material.dispose();
+                            }
+                        }
+                        if (object.texture) object.texture.dispose(); 
+                    });
+                }
+                renderer.dispose();
+                renderer = null; // Clear renderer reference
+            }
+
+            // Initialize Three.js
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000, 0); // Transparent background for the web
+            container.appendChild(renderer.domElement);
+
+            // Node (text) colors - used for text glow, not for lines anymore
+            const colors = [
+                0x00ff88, 0x00ccff, 0xff0099, 0xff6b35, 
+                0x8b5cf6, 0xf59e0b, 0x10b981, 0x3b82f6,
+                0xef4444, 0x06b6d4, 0x84cc16, 0xf472b6
+            ];
+
+            nodeObjects = [];
+            const textTextureCache = new Map(); // Cache for text textures
+
+            // Determine distribution radius based on number of nodes
+            const baseDistributionRadius = 100;
+            const scalingFactor = Math.pow(nodes.length, 1/3) * 5;
+            const distributionRadius = baseDistributionRadius + scalingFactor;
+
+
+            nodes.forEach((node, index) => {
+                // Invisible collision sphere for clicking
+                const geometry = new THREE.SphereGeometry(2, 8, 8);
+                const material = new THREE.MeshBasicMaterial({ 
+                    transparent: true,
+                    opacity: 0, 
+                    visible: false 
+                });
+                
+                const sphere = new THREE.Mesh(geometry, material);
+
+                // Denser 3D distribution for a large number of nodes - improved for scale
+                const position = new THREE.Vector3(
+                    (Math.random() - 0.5) * distributionRadius * 2,
+                    (Math.random() - 0.5) * distributionRadius * 2,
+                    (Math.random() - 0.5) * distributionRadius * 2
+                );
+
+                sphere.position.copy(position);
+
+                sphere.userData = { 
+                    word: node.word, 
+                    frequency: node.frequency,
+                    originalPosition: sphere.position.clone()
+                };
+                
+                scene.add(sphere);
+                nodeObjects.push(sphere);
+
+                // Create and cache text labels (sprites)
+                let sprite;
+                let spriteMaterial;
+                if (textTextureCache.has(node.word)) {
+                    spriteMaterial = textTextureCache.get(node.word);
+                    sprite = new THREE.Sprite(spriteMaterial);
+                } else {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 2048; 
+                    canvas.height = 512; 
+                    const context = canvas.getContext('2d');
+                    context.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    const fontSize = Math.max(100, Math.min(200, Math.log(node.frequency + 1) * 20));
+                    context.font = `bold ${fontSize}px Arial`;
+                    context.textAlign = 'center';
+                    
+                    context.shadowColor = `#${colors[node.group % colors.length].toString(16).padStart(6, '0')}`;
+                    context.shadowBlur = 24;
+                    context.fillStyle = '#ffffff';
+                    context.fillText(node.word, canvas.width / 2, canvas.height / 2);
+                    
+                    // Removed the frequency display below the word
+                    // if (node.frequency > 20) {
+                    //     context.shadowBlur = 12;
+                    //     context.font = '64px Arial';
+                    //     context.fillStyle = `#${colors[node.group % colors.length].toString(16).padStart(6, '0')}`;
+                    //     context.fillText(`${node.frequency}`, canvas.width / 2, canvas.height / 2 + (fontSize / 2) + 20);
+                    // }
+
+                    const texture = new THREE.CanvasTexture(canvas);
+                    spriteMaterial = new THREE.SpriteMaterial({ 
+                        map: texture, 
+                        transparent: true,
+                        alphaTest: 0.1 
+                    });
+                    sprite = new THREE.Sprite(spriteMaterial);
+                    textTextureCache.set(node.word, spriteMaterial);
+                }
+                
+                sprite.position.copy(sphere.position);
+                
+                const textScale = Math.max(40, Math.min(100, Math.log(node.frequency + 1) * 10)) * nodeSizeFactor;
+                sprite.scale.set(textScale, textScale / 4, 1);
+                scene.add(sprite);
+                
+                sphere.userData.sprite = sprite;
+            });
+
+            // Create professional network connections using a single BufferGeometry for performance
+            const linePositions = [];
+            const dotPositions = [];
+            
+            // Clear previous single link object and dots object if they exist
+            if (currentLinkObject) {
+                scene.remove(currentLinkObject);
+                currentLinkObject.geometry.dispose();
+                currentLinkObject.material.dispose();
+                currentLinkObject = null;
+            }
+            if (currentDotsObject) {
+                scene.remove(currentDotsObject);
+                currentDotsObject.geometry.dispose();
+                currentDotsObject.material.dispose();
+                currentDotsObject = null;
+            }
+
+            links.forEach(link => {
+                const sourceNode = nodeObjects[link.source];
+                const targetNode = nodeObjects[link.target];
+
+                if (sourceNode && targetNode) {
+                    const midPoint = new THREE.Vector3().addVectors(sourceNode.position, targetNode.position).multiplyScalar(0.5);
+                    const direction = new THREE.Vector3().subVectors(targetNode.position, sourceNode.position);
+                    const offsetStrength = direction.length() * 0.1;
+                    const perpendicular = new THREE.Vector3(-direction.y, direction.x, 0).normalize().multiplyScalar(offsetStrength * (Math.random() - 0.5) * 2); 
+                    
+                    const controlPoint = midPoint.add(perpendicular);
+
+                    const curve = new THREE.QuadraticBezierCurve3(
+                        sourceNode.position,
+                        controlPoint,
+                        targetNode.position
+                    );
+                    
+                    const points = curve.getPoints(Math.max(2, Math.floor(link.strength * 8)));
+                    
+                    for (let i = 0; i < points.length - 1; i++) {
+                        linePositions.push(points[i].x, points[i].y, points[i].z);
+                        linePositions.push(points[i+1].x, points[i+1].y, points[i+1].z);
+                    }
+
+                    dotPositions.push(midPoint.x, midPoint.y, midPoint.z);
+                }
+            });
+
+            if (linePositions.length > 0) {
+                const lineGeometry = new THREE.BufferGeometry();
+                lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+
+                const lineMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0xFFFFFF,
+                    transparent: true,
+                    opacity: connectionOpacity,
+                    blending: THREE.AdditiveBlending
+                });
+                const lines = new THREE.LineSegments(lineGeometry, lineMaterial);
+                scene.add(lines);
+                currentLinkObject = lines;
+            }
+
+            if (dotPositions.length > 0) {
+                const dotGeometry = new THREE.BufferGeometry();
+                dotGeometry.setAttribute('position', new THREE.Float32BufferAttribute(dotPositions, 3));
+                
+                const dotCanvas = document.createElement('canvas');
+                dotCanvas.width = 32;
+                dotCanvas.height = 32;
+                const dotContext = dotCanvas.getContext('2d');
+                dotContext.beginPath();
+                dotContext.arc(16, 16, 14, 0, Math.PI * 2);
+                dotContext.fillStyle = 'white';
+                dotContext.fill();
+                const dotTexture = new THREE.CanvasTexture(dotCanvas);
+
+                const dotMaterial = new THREE.PointsMaterial({
+                    color: 0xFFFFFF,
+                    size: 1.5,
+                    sizeAttenuation: true,
+                    transparent: true,
+                    opacity: dotOpacity,
+                    map: dotTexture,
+                    blending: THREE.AdditiveBlending
+                });
+                const dots = new THREE.Points(dotGeometry, dotMaterial);
+                scene.add(dots);
+                currentDotsObject = dots;
+            }
+
+
+            const initialCameraZ = distributionRadius * 1.5;
+            camera.position.set(0, 0, initialCameraZ); 
+            camera.lookAt(0, 0, 0);
+
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            const pointLight = new THREE.PointLight(0xffffff, 0.8);
+            pointLight.position.set(distributionRadius / 2, distributionRadius / 2, distributionRadius / 2);
+            scene.add(pointLight);
+
+            setupMouseControls();
+            setupControlPanels();
+
+            if (!animationFrameId) {
+                 animate();
+            }
+        }
+
+        let animationFrameId = null;
+
+        function setupControlPanels() {
+            document.getElementById('rotationSpeed').addEventListener('input', (e) => {
+                rotationSpeed = parseFloat(e.target.value);
+            });
+
+            document.getElementById('nodeSize').addEventListener('input', (e) => {
+                nodeSizeFactor = parseFloat(e.target.value);
+                nodeObjects.forEach((node, index) => {
+                    if (node.userData.sprite) {
+                        const baseScale = Math.max(40, Math.min(100, Math.log(node.frequency + 1) * 10));
+                        const newScaleX = baseScale * nodeSizeFactor;
+                        const newScaleY = (baseScale / 4) * nodeSizeFactor;
+                        node.userData.sprite.scale.set(newScaleX, newScaleY, 1);
+                    }
+                });
+            });
+
+            document.getElementById('connectionOpacity').addEventListener('input', (e) => {
+                connectionOpacity = parseFloat(e.target.value);
+                if (currentLinkObject && currentLinkObject.material) {
+                    currentLinkObject.material.opacity = connectionOpacity;
+                }
+            });
+        }
+
+        function setupMouseControls() {
+            const canvas = renderer.domElement;
+
+            canvas.addEventListener('mousedown', (e) => {
+                isMouseDown = true;
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                isMouseDown = false;
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (isMouseDown) {
+                    const deltaX = e.clientX - mouseX;
+                    const deltaY = e.clientY - mouseY;
+
+                    if (scene) {
+                        scene.rotation.y += deltaX * 0.005;
+                        scene.rotation.x += deltaY * 0.005;
+                    }
+
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                }
+            });
+
+            canvas.addEventListener('wheel', (e) => {
+                if (camera) {
+                    camera.position.z += e.deltaY * 0.2;
+                    const estimatedRadius = nodeObjects.length > 0 ? nodeObjects[0].userData.originalPosition.length() * 1.5 : 100;
+                    camera.position.z = Math.max(estimatedRadius * 0.01, Math.min(estimatedRadius * 3, camera.position.z));
+                }
+            });
+
+            // Click to show detailed word info
+            canvas.addEventListener('click', (e) => {
+                if (!camera || !renderer || !scene) return;
+
+                const raycaster = new THREE.Raycaster();
+                const mouse = new THREE.Vector2();
+
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(nodeObjects);
+
+                if (intersects.length > 0) {
+                    const node = intersects[0].object;
+                    const nodeData = nodes.find(n => n.word === node.userData.word && n.frequency === node.userData.frequency);
+                    if (nodeData) {
+                        const percentage = ((nodeData.frequency / nodes.reduce((sum, n) => sum + n.frequency, 0)) * 100).toFixed(2);
+                        showCustomMessage(`🔤 Word: "${nodeData.word}"\n📊 Frequency: ${nodeData.frequency} times\n📈 Percentage: ${percentage}% of total words\n🏆 Rank: #${nodes.findIndex(n => n.word === nodeData.word) + 1}`);
+                    }
+                }
+            });
+        }
+
+        function animate() {
+            animationFrameId = requestAnimationFrame(animate);
+
+            if (scene && autoRotation) {
+                scene.rotation.y += rotationSpeed;
+            }
+
+            if (nodeObjects.length > 0) {
+                const time = Date.now() * 0.0005;
+                nodeObjects.forEach((node, index) => {
+                    const floatSpeed = 0.5 + (index % 5) * 0.05; 
+                    const floatAmplitude = 5 + (index % 3) * 0.5; 
+                    
+                    const originalPos = node.userData.originalPosition;
+                    node.position.x = originalPos.x + Math.sin(time * floatSpeed + index) * floatAmplitude;
+                    node.position.y = originalPos.y + Math.cos(time * floatSpeed * 1.3 + index) * floatAmplitude;
+                    node.position.z = originalPos.z + Math.sin(time * floatSpeed * 0.7 + index) * floatAmplitude;
+                    
+                    if (node.userData.sprite) {
+                        node.userData.sprite.position.copy(node.position);
+                        
+                        if (nodes[index] && nodes[index].frequency > 50) {
+                            const pulse = 1 + Math.sin(time * 3 + index) * 0.1;
+                            const baseScale = Math.max(40, Math.min(100, Math.log(nodes[index].frequency + 1) * 10)) * nodeSizeFactor; 
+                            node.userData.sprite.scale.set(baseScale * pulse, (baseScale / 4) * pulse, 1);
+                        }
+                    }
+                });
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        });
+    </script>
+</body>
+</html>

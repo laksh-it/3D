@@ -1,0 +1,1752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D Chat Visualizer - Lakshit Khurana</title> <link rel="icon" href="./static/dp.png" type="image/png" sizes="32x32"></title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<style>
+    /* General Reset and Body Styles */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+        color: #ffffff;
+        overflow: hidden; /* Prevent body scrolling */
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        touch-action: manipulation; /* Optimize touch */
+    }
+
+    /* Fullscreen specific styles (simulated) */
+    body.fullscreen-active {
+        background: black !important; /* Force black background */
+        overflow: hidden; /* Ensure no scrollbars */
+    }
+
+    /* Hide most UI elements when in simulated fullscreen */
+    body.fullscreen-active .header,
+    body.fullscreen-active .controls-panel,
+    body.fullscreen-active .network-stats,
+    body.fullscreen-active .instructions,
+    body.fullscreen-active .visual-footer,
+    body.fullscreen-active .footer-bottom-spacer,
+    body.fullscreen-active .upload-section,
+    body.fullscreen-active #wordCountContainer,
+    body.fullscreen-active #fullscreenBtn { /* Added fullscreenBtn itself to be hidden */
+        display: none !important; /* Hide all UI elements */
+    }
+
+    /* Keep the mobile-toggle-btn visible and styled differently in fullscreen */
+    body.fullscreen-active .mobile-toggle-btn {
+        display: block !important; /* Ensure it's visible */
+        position: fixed; /* Fixed position relative to viewport */
+        top: 20px; /* Adjust as needed */
+        left: 20px; /* Adjust as needed */
+        background: linear-gradient(45deg, #ff6b35, #ff0099) !important; /* Change color for exit */
+        box-shadow: 0 4px 16px rgba(255, 107, 53, 0.3) !important;
+    }
+
+    /* Main Container */
+    .container {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Header Section - Mobile Optimized */
+    .header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(8px);
+        padding: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        text-align: center;
+        /* max-height removed to allow content to dictate height, flex will manage space */
+        overflow-y: auto; /* Allow header content to scroll if it exceeds visible area */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .title {
+        font-size: 1.5em;
+        font-weight: 700;
+        background: linear-gradient(45deg, #00ff88, #00ccff, #ff0099);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 8px;
+        text-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        display: flex; /* Use flexbox to align logo and text */
+        align-items: center; /* Vertically align items */
+        justify-content: center; /* Center horizontally */
+    }
+
+    .title img {
+    height: 1em; /* Adjust height relative to font-size of title (e.g., makes it same height as text) */
+    margin-right: 10px; /* Add some space between the logo and the text */
+    vertical-align: middle; /* Ensures the image aligns nicely with the text baseline */
+    /* You can add more styles like max-width, padding, etc., if needed */
+    }
+
+    .subtitle {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.8em;
+        margin-bottom: 15px;
+    }
+
+    /* Upload Section - Redesigned for horizontal layout */
+    .upload-section {
+        display: flex;
+        flex-direction: row; /* Horizontal layout */
+        justify-content: center; /* Center items */
+        align-items: flex-start; /* Align items to the top */
+        gap: 10px;
+        margin-bottom: 10px;
+        width: 100%; /* Take full width */
+        flex-wrap: wrap; /* Allow wrapping on very small screens */
+        padding: 0 10px; /* Add some padding */
+    }
+
+    /* New wrapper for file input and fullscreen button */
+    .file-and-fullscreen-group {
+        display: flex;
+        flex-direction: column; /* Stack vertically */
+        gap: 10px; /* Space between items */
+        width: 48%; /* Take roughly half width of upload-section */
+        max-width: 180px; /* Consistent max-width */
+        flex-shrink: 0; /* Prevent shrinking */
+    }
+
+    .file-input-wrapper {
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+        background: linear-gradient(45deg, #00ff88, #00ccff);
+        border-radius: 20px;
+        padding: 2px;
+        box-shadow: 0 4px 16px rgba(0, 255, 136, 0.2);
+        transition: all 0.3s ease;
+        width: 100%; /* Fill parent width */
+    }
+
+    .file-input-wrapper:active {
+        transform: scale(0.98);
+    }
+
+    .file-input-wrapper input[type=file] {
+        position: absolute;
+        left: -9999px;
+    }
+
+    .file-input-label {
+        display: flex; /* Use flexbox to center text vertically */
+        align-items: center; /* Center vertically */
+        justify-content: center; /* Center horizontally */
+        padding: 15px 10px; /* Reduced vertical padding */
+        background: #1a1a2e;
+        color: white;
+        border-radius: 18px;
+        cursor: pointer;
+        font-weight: 600;
+        text-align: center;
+        font-size: 0.75em; /* Slightly smaller font */
+        min-height: 50px; /* Ensure a minimum height for wrapping */
+    }
+
+    .action-buttons-group {
+        display: flex;
+        flex-direction: column; /* Buttons stacked vertically */
+        gap: 10px;
+        width: 48%; /* Take roughly half width */
+        max-width: 180px; /* Adjusted max-width */
+        flex-shrink: 0; /* Prevent shrinking */
+    }
+
+    .action-btn {
+        background: linear-gradient(45deg, #ff0099, #ff6b35);
+        border: none;
+        padding: 15px 10px; /* Reduced vertical padding */
+        border-radius: 20px;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 16px rgba(255, 0, 153, 0.2);
+        font-size: 0.75em; /* Slightly smaller font */
+        width: 100%; /* Fill parent width */
+        min-height: 50px; /* Ensure a minimum height */
+    }
+
+    .action-btn:active:not(:disabled) {
+        transform: scale(0.98);
+    }
+
+    .action-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Word Count Slider - Mobile Optimized */
+    #wordCountContainer {
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        padding: 0 15px;
+    }
+
+    .slider-label {
+        font-size: 0.8em;
+        color: rgba(255, 255, 255, 0.8);
+        margin-bottom: 8px;
+        text-align: center;
+    }
+
+    #wordCountSlider {
+        width: 95%;
+        height: 8px;
+        background: #3a3a5a;
+        border-radius: 4px;
+        outline: none;
+        -webkit-appearance: none;
+        margin-bottom: 8px;
+    }
+
+    #wordCountSlider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 24px; /* Larger for mobile */
+        height: 24px;
+        background: linear-gradient(45deg, #00ccff, #00ff88);
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 0 8px rgba(0, 204, 255, 0.5);
+    }
+
+    #wordCountValue {
+        font-weight: bold;
+        color: #00ff88;
+        font-size: 0.9em;
+    }
+
+    /* Word Count Warning - Mobile Optimized */
+    #wordCountWarning {
+        font-size: 0.75em;
+        margin-top: 8px;
+        padding: 6px 10px;
+        border-radius: 8px;
+        display: none;
+        max-width: 95%;
+        text-align: center;
+    }
+
+    .word-count-green {
+        background-color: rgba(0, 255, 136, 0.1);
+        color: #00ff88;
+        border: 1px solid rgba(0, 255, 136, 0.3);
+    }
+
+    .word-count-yellow {
+        background-color: rgba(255, 200, 0, 0.1);
+        color: #ffc800;
+        border: 1px solid rgba(255, 200, 0, 0.3);
+    }
+
+    .word-count-red {
+        background-color: rgba(255, 0, 0, 0.1);
+        color: #ff6b6b;
+        border: 1px solid rgba(255, 0, 0, 0.3);
+    }
+
+    /* Mobile Controls Panel - Simplified */
+    .controls-panel {
+        position: absolute;
+        top: 10px; 
+        right: 10px;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(8px);
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: none;
+        max-width: 200px;
+        font-size: 0.8em;
+    }
+
+    .controls-panel h3 {
+        color: #00ff88;
+        margin-bottom: 10px;
+        font-size: 1em;
+    }
+
+    .control-item {
+        margin-bottom: 12px;
+    }
+
+    .control-label {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.75em;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .control-slider {
+        width: 100%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 2px;
+        outline: none;
+        -webkit-appearance: none;
+    }
+
+    .control-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 18px; /* Larger for mobile */
+        height: 18px;
+        background: #00ff88;
+        border-radius: 50%;
+        cursor: pointer;
+    }
+
+    /* Mobile Toggle Button - Placed top-left */
+    .mobile-toggle-btn {
+        position: absolute;
+        top: 10px; /* Aligned with top-left corner */
+        left: 10px; /* Aligned with top-left corner */
+        z-index: 1000;
+        background: linear-gradient(45deg, #00ccff, #00ff88);
+        border: none;
+        padding: 12px;
+        border-radius: 50%;
+        color: white;
+        font-size: 1.2em;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(0, 204, 255, 0.3);
+        width: 50px;
+        height: 50px;
+        display: none; /* Hidden by default, shown when visualization loads */
+    }
+
+    .mobile-toggle-btn:active {
+        transform: scale(0.95);
+    }
+
+    /* Network Stats - Mobile Optimized */
+    .network-stats {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 999;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(8px);
+        border-radius: 10px;
+        padding: 6px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #00ff88;
+        font-size: 0.7em;
+        display: none;
+        white-space: nowrap;
+    }
+
+    /* Loading Overlay */
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+        flex-direction: column;
+    }
+
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 3px solid rgba(255, 255, 255, 0.1);
+        border-left: 3px solid #00ff88;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+        margin-top: 15px;
+        color: #00ff88;
+        font-size: 1em;
+        text-align: center;
+    }
+
+    /* Canvas Container */
+    #canvas-container {
+        flex: 1;
+        position: relative;
+        width: 100%;
+        height: 100%;
+        touch-action: none; /* Prevent default touch behaviors */
+    }
+
+    /* Instructions - Mobile Optimized */
+    .instructions {
+        position: absolute;
+        bottom: 150px; /* Adjusted to be above the new footer height */
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(8px);
+        border-radius: 10px;
+        padding: 8px 15px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        text-align: center;
+        display: none;
+        font-size: 0.7em;
+        max-width: 90%;
+    }
+
+    /* Error Message */
+    .error-message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 2000;
+        background: rgba(255, 0, 0, 0.1);
+        border: 1px solid rgba(255, 0, 0, 0.5);
+        border-radius: 10px;
+        padding: 15px;
+        color: #ff6b6b;
+        display: none;
+        max-width: 90%;
+        text-align: center;
+        font-size: 0.9em;
+    }
+
+    /* Custom Message Box */
+    .custom-message-box {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(26, 33, 62, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 255, 136, 0.3);
+        border-radius: 12px;
+        padding: 20px;
+        z-index: 3000;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+        max-width: 90%;
+        width: 300px;
+        text-align: center;
+        color: #ffffff;
+        display: none;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .custom-message-box p {
+        margin-bottom: 15px;
+        font-size: 0.9em;
+        line-height: 1.4;
+    }
+
+    .custom-message-box button {
+        background: linear-gradient(45deg, #00ff88, #00ccff);
+        border: none;
+        padding: 10px 20px;
+        border-radius: 15px;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.9em;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translate(-50%, -60%); }
+        to { opacity: 1; transform: translate(-50%, -50%); }
+    }
+
+    /* How to Get JSON Section - Mobile Optimized (Fixed Window, Scrollable Content) */
+    .how-to-get-json {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%); /* Center the window */
+        width: 90%; /* Max width of the window */
+        max-width: 500px; /* Constrain max width */
+        height: auto; /* Height will adjust to content if not maxed out */
+        max-height: 90vh; /* Max height to fit viewport, allowing for scroll */
+        background: rgba(0, 0, 0, 0.95); /* Darker overlay */
+        backdrop-filter: blur(10px);
+        z-index: 2500; /* Above other UI, below message box */
+        display: none; /* Hidden by default */
+        flex-direction: column; /* For vertical layout of elements */
+        padding: 20px; /* Add some padding around the content */
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .how-to-get-json h2 {
+        color: #00ccff;
+        margin-bottom: 15px;
+        font-size: 1.2em;
+        text-align: center;
+    }
+
+    /* Scrollable content container for the list */
+    .how-to-get-json-content-scroll {
+        flex-grow: 1; /* Allow this to take available space */
+        overflow-y: auto; /* Make ONLY this part scrollable vertically */
+        padding-right: 10px; /* Add padding for scrollbar space if needed */
+        margin-bottom: 15px; /* Space before the button */
+        scrollbar-width: thin; /* Firefox */
+        scrollbar-color: #00ff88 #3a3a5a; /* Firefox */
+    }
+
+    /* Custom scrollbar for Webkit */
+    .how-to-get-json-content-scroll::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .how-to-get-json-content-scroll::-webkit-scrollbar-track {
+        background: #3a3a5a;
+        border-radius: 10px;
+    }
+
+    .how-to-get-json-content-scroll::-webkit-scrollbar-thumb {
+        background: #00ff88;
+        border-radius: 10px;
+    }
+
+    .how-to-get-json ol {
+        list-style: none;
+        counter-reset: step-counter;
+        padding-left: 0;
+    }
+
+    .how-to-get-json ol li {
+        margin-bottom: 15px; /* Increased space between steps */
+        padding-left: 28px;
+        position: relative;
+        font-size: 0.85em;
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.4;
+    }
+
+    .how-to-get-json ol li::before {
+        counter-increment: step-counter;
+        content: counter(step-counter) ".";
+        position: absolute;
+        left: 0;
+        top: 0;
+        font-weight: bold;
+        color: #00ff88;
+        font-size: 1em;
+    }
+
+    /* Styles for horizontal image scroll container */
+    .how-to-get-json .image-scroll-container {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        scrollbar-width: none; /* Hide scrollbar for Firefox */
+        -ms-overflow-style: none; /* Hide scrollbar for IE/Edge */
+        height: 480px; /* Increased height significantly (4x of original 120px) */
+        margin-top: 25px; /* Adjusted margin-top for better spacing */
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.2);
+        display: flex; /* Use flex to align images side-by-side */
+        align-items: center; /* Vertically center images */
+        scroll-snap-type: x mandatory; /* Snap to images */
+        padding: 15px; /* Increased padding inside the scroll container */
+    }
+
+    .how-to-get-json .image-scroll-container::-webkit-scrollbar {
+        display: none; /* Hide scrollbar for Webkit browsers */
+    }
+
+    .how-to-get-json .image-scroll-container img {
+        width: auto; /* Allow image to determine its width */
+        height: 100%; /* Fill the height of the container */
+        max-height: 450px; /* Set a max-height to fit within the container with padding */
+        max-width: none; /* Override any max-width to allow horizontal scrolling */
+        border-radius: 6px;
+        object-fit: contain; /* Ensure the image fits without cropping */
+        margin-right: 25px; /* Increased space between images */
+        scroll-snap-align: center; /* Snap to the center of each image for better visibility */
+    }
+
+    .how-to-get-json .image-scroll-container img:last-child {
+        margin-right: 0; /* No margin on the last image */
+    }
+
+    .how-to-get-json p {
+        font-size: 0.8em; /* Slightly smaller */
+        color: rgba(255, 255, 255, 0.6);
+        margin-top: 10px;
+        text-align: center;
+    }
+
+    /* New Visual Footer for Content */
+    .visual-footer {
+        position: absolute;
+        bottom: 80px; /* Moved up as requested */
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: rgba(0, 0, 0, 0.95); /* Black background */
+        backdrop-filter: blur(8px);
+        padding: 15px; /* Increased padding to make it larger */
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        text-align: center;
+        font-size: 0.7em;
+        color: rgba(255, 255, 255, 0.6);
+        height: auto; /* Allow height to adjust to content */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .visual-footer .social-links {
+        margin-top: 8px; /* Add some space above social links */
+    }
+
+    .visual-footer .social-links a {
+        color: #00ccff;
+        margin: 0 8px;
+        font-size: 1.5em;
+        transition: color 0.3s ease;
+    }
+
+    .visual-footer .social-links a:active {
+        color: #00ff88;
+    }
+
+    /* Footer Bottom Spacer (empty black box) */
+    .footer-bottom-spacer {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: black; /* Solid black as requested */
+        height: 60px; /* Fixed height to act as the "empty black box" */
+    }
+
+    /* Hide desktop-specific elements on mobile */
+    .switch {
+        display: none;
+    }
+
+    /* Performance optimizations for mobile */
+    * {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Prevent zoom on inputs */
+    input, select, textarea {
+        font-size: 16px;
+    }
+
+    /* Optimize scrolling */
+    .header {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Welcome Message Overlay */
+    .welcome-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9); /* Darker overlay */
+        backdrop-filter: blur(10px);
+        z-index: 4000; /* Highest z-index to be on top */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        padding: 20px;
+    }
+
+    .welcome-message-box {
+        background: rgba(26, 33, 62, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 255, 136, 0.3);
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+        max-width: 400px;
+        width: 100%;
+        text-align: center;
+        color: #ffffff;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .welcome-message-box p {
+        margin-bottom: 15px;
+        font-size: 1.1em;
+        line-height: 1.5;
+    }
+
+    .welcome-message-box button {
+        /* Reusing action-btn style */
+        margin-top: 20px;
+        width: 80%; /* Make button a bit wider */
+        max-width: 200px;
+    }
+</style>
+</head>
+<body>
+    <div class="welcome-overlay" id="welcomeOverlay">
+        <div class="welcome-message-box">
+            <p>For the best 3D visualization experience, we recommend using a desktop browser.</p>
+            <p>You can still continue to the mobile version below.</p>
+            <button id="continueMobileBtn" class="action-btn">
+                Continue to Mobile
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1 class="title"><img src="./static/logo.png" alt="Logo">ChatGPT 3D Visualizer</h1>
+            <p class="subtitle">Interactive 3D conversation network</p>
+            
+            <div class="upload-section">
+                <div class="file-and-fullscreen-group">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fileInput" accept=".json">
+                        <label for="fileInput" class="file-input-label">
+                            📁 Upload conversations.json
+                        </label>
+                    </div>
+                    <button id="howToGetJsonBtn" class="action-btn">
+                        ❓ How to get JSON
+                    </button>
+                </div>
+                <div class="action-buttons-group">
+                    <button id="analyzeBtn" class="action-btn" disabled>
+                        ✨ Generate 3D Web
+                    </button>
+                    <button id="fullscreenBtn" class="action-btn">
+                        Expand Fullscreen 🌐
+                    </button>
+                </div>
+            </div>
+
+            <div id="wordCountContainer">
+                <div class="slider-label">Words to Display: <span id="wordCountValue">350</span></div>
+                <input type="range" id="wordCountSlider" min="50" max="800" step="50" value="350">
+                <div id="wordCountWarning" class="word-count-green">
+                    Optimal for mobile performance!
+                </div>
+            </div>
+        </div>
+
+        <div class="how-to-get-json" id="howToGetJsonSection">
+            <h2>Export ChatGPT Data</h2>
+            <div class="how-to-get-json-content-scroll">
+                <ol>
+                    <li>
+                        Open ChatGPT (chatgpt.com). Tap profile icon (bottom left)
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step1.png" alt="Step 1: Open ChatGPT">
+                        </div>
+                    </li>
+                    <li>
+                        Select "Settings"
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step2.png" alt="Step 2: Tap profile icon">
+                        </div>
+                    </li>
+                    <li>
+                        Tap "Data Controls"
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step3.png" alt="Step 3: Select Settings">
+                        </div>
+                    </li>
+                    <li>
+                        Tap "Export" in front of "Export data"
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step4.png" alt="Step 4: Tap Data Controls">
+                        </div>
+                    </li>
+                    <li>
+                        Tap "Confirm export"
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step5.png" alt="Step 5: Tap Export data">
+                        </div>
+                    </li>
+                    <li>
+                        Check email within 24 hours
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step6.png" alt="Step 6: Confirm export">
+                        </div>
+                    </li>
+                    <li>
+                        Download data export
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step7.png" alt="Step 7: Check email">
+                        </div>
+                    </li>
+                    <li>
+                        Open the downloaded folder
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step8.png" alt="Step 8: Download and extract ZIP">
+                        </div>
+                    </li>
+                    <li>
+                        Get your conversations.json here
+                        <div class="image-scroll-container">
+                            <img src="./static/steps/step9.png" alt="Step 9: Upload conversations.json">
+                        </div>
+                    </li>
+                </ol>
+            </div>
+            <button id="closeHowToGetJsonBtn" class="action-btn" style="width: 100%;">
+                Got it!
+            </button>
+        </div>
+
+        <div class="loading-overlay" id="loadingOverlay">
+            <div>
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Creating your 3D visualization...</div>
+            </div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="custom-message-box" id="customMessageBox">
+            <p id="customMessageText"></p>
+            <button id="customMessageCloseBtn">OK</button>
+        </div>
+
+        <div class="controls-panel" id="controlsPanel">
+            <h3>🎮 Controls</h3>
+            <div class="control-item">
+                <div class="control-label">Rotation Speed</div>
+                <input type="range" class="control-slider" id="rotationSpeed" min="0" max="0.015" step="0.001" value="0.002">
+            </div>
+            <div class="control-item">
+                <div class="control-label">Node Size</div>
+                <input type="range" class="control-slider" id="nodeSize" min="0.3" max="2" step="0.1" value="0.6">
+            </div>
+            <div class="control-item">
+                <div class="control-label">Connections</div>
+                <input type="range" class="control-slider" id="connectionOpacity" min="0.05" max="0.5" step="0.01" value="0.25">
+            </div>
+        </div>
+
+        <button id="mobileToggleBtn" class="mobile-toggle-btn">
+            ⚙️
+        </button>
+
+        <div class="instructions" id="instructions">
+            👆 Touch: Rotate | 🤏 Pinch: Zoom | Tap words for details
+        </div>
+
+        <div class="network-stats" id="networkStats">
+            📊 Mobile: 350 words optimized
+        </div>
+
+        <div id="canvas-container"></div>
+
+        <div class="visual-footer">
+            <span>Built with ❤️ by Lakshit Khurana (Lucky)</span>
+            <div class="social-links">
+                <a href="https://www.instagram.com/_lakshit_khurana?igsh=MXU4dHI2NG95cTR6dQ%3D%3D&utm_source=qr" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+            </div>
+        </div>
+
+        <div class="footer-bottom-spacer"></div> 
+    </div>
+
+    <script>
+        let scene, camera, renderer, nodes = [], links = [], nodeObjects = [], currentLinkObject = null, currentDotsObject = null;
+let rotationSpeed = 0.002; // Slower for mobile
+let nodeSizeFactor = 0.6; // Smaller for mobile
+let connectionOpacity = 0.25; // Default to 0.25 as requested (half of 0.5)
+const dotOpacity = 0.4; // Increased for perceived thickness
+let autoRotation = true;
+
+// Touch handling variables
+let touchStartX = 0, touchStartY = 0;
+let lastTouchDistance = 0;
+let isRotating = false;
+let touchControls = { rotating: false, zooming: false };
+
+// UI Element References
+const fileInput = document.getElementById('fileInput');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const loadingOverlay = document.getElementById('loadingOverlay');
+const errorMessage = document.getElementById('errorMessage');
+const instructions = document.getElementById('instructions');
+const networkStatsDisplay = document.getElementById('networkStats'); 
+const wordCountSlider = document.getElementById('wordCountSlider'); 
+const wordCountValueDisplay = document.getElementById('wordCountValue');
+const wordCountWarning = document.getElementById('wordCountWarning');
+const controlsPanel = document.getElementById('controlsPanel');
+const mobileToggleBtn = document.getElementById('mobileToggleBtn');
+const canvasContainer = document.getElementById('canvas-container');
+const howToGetJsonBtn = document.getElementById('howToGetJsonBtn');
+const howToGetJsonSection = document.getElementById('howToGetJsonSection');
+const closeHowToGetJsonBtn = document.getElementById('closeHowToGetJsonBtn');
+const customMessageBox = document.getElementById('customMessageBox');
+const customMessageText = document.getElementById('customMessageText');
+const customMessageCloseBtn = document.getElementById('customMessageCloseBtn');
+const fullscreenBtn = document.getElementById('fullscreenBtn'); // Added fullscreen button reference
+const welcomeOverlay = document.getElementById('welcomeOverlay'); // Added welcome overlay reference
+const continueMobileBtn = document.getElementById('continueMobileBtn'); // Added continue button reference
+
+// Mobile-optimized initial values
+updateWordCountDisplay(350); // Set default to 350
+
+// Function to show custom message box
+function showCustomMessage(message) {
+    customMessageText.textContent = message;
+    customMessageBox.style.display = 'block';
+}
+
+function hideCustomMessage() {
+    customMessageBox.style.display = 'none';
+}
+
+customMessageCloseBtn.addEventListener('click', hideCustomMessage);
+
+fileInput.addEventListener('change', function(e) {
+    if (e.target.files.length > 0) {
+        analyzeBtn.disabled = false;
+        analyzeBtn.textContent = '✨ Generate 3D Web';
+    }
+});
+
+analyzeBtn.addEventListener('click', analyzeFile);
+
+wordCountSlider.addEventListener('input', function() {
+    updateWordCountDisplay(this.value);
+});
+
+function updateWordCountDisplay(count) {
+    wordCountValueDisplay.textContent = count;
+    networkStatsDisplay.textContent = `📊 Mobile: ${count} words optimized`;
+
+    wordCountWarning.style.display = 'block';
+    wordCountWarning.className = '';
+
+    if (count <= 300) {
+        wordCountWarning.classList.add('word-count-green');
+        wordCountWarning.textContent = 'Optimal for mobile performance!';
+    } else if (count > 300 && count <= 500) {
+        wordCountWarning.classList.add('word-count-yellow');
+        wordCountWarning.textContent = 'May affect performance on older devices.';
+    } else {
+        wordCountWarning.classList.add('word-count-red');
+        wordCountWarning.textContent = 'High load! May cause lag on mobile.';
+    }
+}
+
+// Mobile controls toggle - updated logic
+mobileToggleBtn.addEventListener('click', () => {
+    // Check if currently in simulated fullscreen mode
+    if (document.body.classList.contains('fullscreen-active')) {
+        toggleFullScreen(); // Act as exit fullscreen
+    } else {
+        // If not in fullscreen, it toggles the controls panel
+        const isVisible = controlsPanel.style.display === 'block';
+        controlsPanel.style.display = isVisible ? 'none' : 'block';
+    }
+});
+
+// How to get JSON handlers
+howToGetJsonBtn.addEventListener('click', () => {
+    howToGetJsonSection.style.display = 'flex'; // Use flex to center content
+    document.querySelector('.header').style.display = 'none';
+    controlsPanel.style.display = 'none';
+    mobileToggleBtn.style.display = 'none';
+    instructions.style.display = 'none';
+    networkStatsDisplay.style.display = 'none';
+    fullscreenBtn.style.display = 'none'; // Hide fullscreen button
+});
+
+closeHowToGetJsonBtn.addEventListener('click', () => {
+    howToGetJsonSection.style.display = 'none';
+    document.querySelector('.header').style.display = 'block';
+    if (scene && renderer) { // Only show these if visualization is loaded
+        mobileToggleBtn.style.display = 'block';
+        instructions.style.display = 'block';
+        networkStatsDisplay.style.display = 'block';
+        fullscreenBtn.style.display = 'block'; // Show fullscreen button
+    } else {
+        // If no visualization yet, show fullscreen button so user can initiate.
+        fullscreenBtn.style.display = 'block';
+    }
+});
+
+// Fullscreen button logic
+fullscreenBtn.addEventListener('click', () => {
+    toggleFullScreen();
+});
+
+// Modified toggleFullScreen function for simulated fullscreen
+function toggleFullScreen() {
+    const isCurrentlySimulatedFullscreen = document.body.classList.contains('fullscreen-active');
+
+    if (!isCurrentlySimulatedFullscreen) {
+        // Enter simulated fullscreen
+        document.body.classList.add('fullscreen-active');
+        mobileToggleBtn.innerHTML = '<i class="fas fa-times"></i>'; // Change to cross icon
+        // Hide controls panel if it was open
+        controlsPanel.style.display = 'none';
+
+        // Manually trigger resize to ensure canvas fills new dimensions
+        if (camera && renderer) {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Hide other specific UI elements that might not be caught by general CSS
+        // The CSS handles most of this, but explicitly hiding ensures consistency.
+        document.querySelector('.header').style.display = 'none';
+        instructions.style.display = 'none';
+        networkStatsDisplay.style.display = 'none';
+        fullscreenBtn.style.display = 'none'; // The button itself should disappear when in "fullscreen"
+    } else {
+        // Exit simulated fullscreen
+        document.body.classList.remove('fullscreen-active');
+        mobileToggleBtn.innerHTML = '⚙️'; // Change back to gear icon
+
+        // Show elements that are normally visible if visualization is active
+        if (scene && renderer) {
+            instructions.style.display = 'block';
+            networkStatsDisplay.style.display = 'block';
+            document.querySelector('.header').style.display = 'block'; // Ensure header shows
+            fullscreenBtn.style.display = 'block'; // Show fullscreen button again
+        }
+        // Manually trigger resize to ensure canvas returns to normal dimensions
+        if (camera && renderer) {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    }
+}
+
+function showError(message) {
+    errorMessage.textContent = message;
+    errorMessage.style.display = 'block';
+    setTimeout(() => {
+        errorMessage.style.display = 'none';
+    }, 4000);
+}
+
+function showLoading() {
+    loadingOverlay.style.display = 'flex';
+}
+
+function hideLoading() {
+    loadingOverlay.style.display = 'none';
+}
+
+// --- START CLIENT-SIDE ANALYSIS LOGIC (REPLACING PYTHON BACKEND) ---
+
+// Hardcoded English stop words (based on NLTK's list + custom ones from your Python code)
+const stopWords = new Set([
+    'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', "you're", "you've", "you'll", "you'd", 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', "she's", 'her', 'hers', 'herself', 'it', "it's", 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 'this', 'that', "that'll", 'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', "don't", 'should', "should've", 'now', 'd', 'll', 'm', 'o', 're', 've', 'y', 'ain', 'aren', "aren't", 'couldn', "couldn't", 'didn', "didn't", 'doesn', "doesn't", 'hadn', "hadn't", 'hasn', "hasn't", 'haven', "haven't", 'isn', "isn't", 'ma', 'mightn', "mightn't", 'mustn', "mustn't", 'needn', "needn't", 'shan', "shan't", 'shouldn', "shouldn't", 'wasn', "wasn't", 'weren', "weren't", 'won', "won't", 'wouldn', "wouldn't",
+    // Custom words from your app.py
+    'would', 'could', 'should', 'really', 'like', 'think',
+    'know', 'want', 'need', 'good', 'great', 'thanks', 'thank',
+    'please', 'sorry', 'yes', 'no', 'ok', 'okay', 'sure',
+    'chatgpt', 'gpt', 'ai', 'assistant', 'help', 'can', 'will'
+]);
+
+async function extractWordsFromConversations(conversationsData, numWordsLimit) {
+    let allText = "";
+    let conversationCount = 0;
+    let messageCount = 0;
+
+    try {
+        for (const conversation of conversationsData) {
+            if (conversation.mapping) {
+                conversationCount++;
+                for (const msgId in conversation.mapping) {
+                    const messageData = conversation.mapping[msgId];
+                    if (messageData.message) {
+                        const message = messageData.message;
+                        messageCount++;
+
+                        if (message.content) {
+                            const contentType = message.content.content_type;
+                            const parts = message.content.parts;
+
+                            if (parts) {
+                                if (contentType === 'text' || contentType === 'code') {
+                                    allText += parts.join(" ") + " ";
+                                } else if (contentType === 'multimodal_text') {
+                                    for (const part of parts) {
+                                        if (typeof part === 'string') {
+                                            allText += part + " ";
+                                        } else if (typeof part === 'object' && part.text) {
+                                            allText += part.text + " ";
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Clean and tokenize the text
+        const cleanedText = allText.toLowerCase().replace(/[^a-z\s]/g, '');
+        const tokens = cleanedText.match(/\b\w+\b/g) || [];
+
+        // Filter out stop words and non-alphabetic tokens
+        const filteredWords = tokens.filter(word => {
+            return /^[a-z]+$/.test(word) && !stopWords.has(word);
+        });
+
+        // Get word frequencies
+        const wordFreq = {};
+        for (const word of filteredWords) {
+            wordFreq[word] = (wordFreq[word] || 0) + 1;
+        }
+
+        // Sort words by frequency and take the top N
+        const sortedWords = Object.entries(wordFreq).sort(([, freqA], [, freqB]) => freqB - freqA);
+        const mostCommonWords = sortedWords.slice(0, numWordsLimit);
+
+        return {
+            total_conversations: conversationCount,
+            total_messages: messageCount,
+            total_words: filteredWords.length,
+            unique_words: Object.keys(wordFreq).length,
+            words: mostCommonWords
+        };
+    } catch (e) {
+        console.error(`Error in extractWordsFromConversations: ${e}`);
+        throw e;
+    }
+}
+
+
+async function analyzeFile() {
+    const file = fileInput.files[0];
+    if (!file) {
+        showError('Please select a file first');
+        return;
+    }
+
+    if (!file.name.endsWith('.json')) {
+        showError('Please upload a JSON file.');
+        return;
+    }
+
+    showLoading();
+
+    const numWordsToDisplay = parseInt(wordCountSlider.value, 10);
+    
+    try {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const conversationsData = JSON.parse(event.target.result);
+                const analysis = await extractWordsFromConversations(conversationsData, numWordsToDisplay);
+
+                const nodes = [];
+                const links = [];
+
+                // Node creation
+                for (let i = 0; i < analysis.words.length; i++) {
+                    const [word, freq] = analysis.words[i];
+                    nodes.push({
+                        id: i,
+                        word: word,
+                        frequency: freq,
+                        size: Math.min(Math.max(freq * 1.5, 8), 25), // Adjusted size calculation if needed
+                        group: i % 12 // Keep original grouping logic
+                    });
+                }
+
+                // Link creation (retain the random link generation logic)
+                const randomSeed = 42; // Consistent seed for reproducible results
+                // Simple seeded random number generator
+                Math.seedrandom = function(seed) {
+                    var x = Math.sin(seed || Date.now()) * 10000;
+                    return function() {
+                        x = (x + 0.5) * 17 % 1;
+                        return x;
+                    };
+                };
+                let rand = Math.seedrandom(randomSeed);
+
+
+                for (let i = 0; i < nodes.length; i++) {
+                    const currentFreq = nodes[i].frequency;
+                    const numConnections = Math.min(Math.max(Math.floor(currentFreq / 5), 3), 15);
+
+                    let targets = [];
+                    // Connect to nearby nodes (in sorted frequency list)
+                    for (let j = Math.max(0, i - 5); j < Math.min(nodes.length, i + 6); j++) {
+                        if (j !== i) {
+                            targets.push(j);
+                        }
+                    }
+
+                    // Add random targets from the remaining available nodes
+                    const availableTargets = nodes.map((_, idx) => idx).filter(idx => idx !== i && !targets.includes(idx));
+                    // Shuffle and pick
+                    for (let k = availableTargets.length - 1; k > 0; k--) {
+                        const j = Math.floor(rand() * (k + 1));
+                        [availableTargets[k], availableTargets[j]] = [availableTargets[j], availableTargets[k]];
+                    }
+                    const randomTargets = availableTargets.slice(0, Math.min(numConnections - targets.length, availableTargets.length));
+                    targets.push(...randomTargets);
+
+                    // Ensure unique targets and limit to numConnections
+                    targets = Array.from(new Set(targets)).slice(0, numConnections);
+
+                    for (const target of targets) {
+                        const freqDiff = Math.abs(nodes[i].frequency - nodes[target].frequency);
+                        const maxFreq = Math.max(nodes[i].frequency, nodes[target].frequency);
+                        const strength = maxFreq > 0 ? Math.max(0.2, 1.0 - (freqDiff / maxFreq)) : 0.5;
+
+                        links.push({
+                            source: i,
+                            target: target,
+                            strength: strength
+                        });
+                    }
+                }
+
+                create3DVisualization(nodes, links);
+                instructions.style.display = 'block';
+                networkStatsDisplay.style.display = 'block';
+                mobileToggleBtn.style.display = 'block'; // Ensure toggle button is visible
+                fullscreenBtn.style.display = 'block'; // Ensure fullscreen button is visible
+                howToGetJsonSection.style.display = 'none';
+                document.querySelector('.header').style.display = 'block';
+
+            } catch (parseError) {
+                console.error('Error parsing JSON or analyzing data:', parseError);
+                showError('Error processing JSON file. Please ensure it\'s a valid `conversations.json` from ChatGPT. Details: ' + parseError.message);
+            } finally {
+                hideLoading();
+            }
+        };
+        reader.onerror = (error) => {
+            console.error('File reading error:', error);
+            showError('Error reading file. Please try again.');
+            hideLoading();
+        };
+        reader.readAsText(file);
+
+    } catch (error) {
+        console.error('Overall analysis error:', error);
+        showError('An unexpected error occurred during analysis: ' + error.message);
+        hideLoading();
+    }
+}
+
+// --- END CLIENT-SIDE ANALYSIS LOGIC ---
+
+function create3DVisualization(nodeData, linkData) {
+    nodes = nodeData;
+    links = linkData;
+
+    // Clear existing scene
+    const container = document.getElementById('canvas-container');
+    if (renderer) {
+        if (renderer.domElement.parentNode === container) {
+            container.removeChild(renderer.domElement);
+        }
+        if (scene) {
+            scene.children.forEach(object => {
+                if (object.geometry) object.geometry.dispose();
+                if (object.material) {
+                    if (Array.isArray(object.material)) {
+                        object.material.forEach(material => material.dispose());
+                    } else {
+                        object.material.dispose();
+                    }
+                }
+                if (object.texture) object.texture.dispose(); // Dispose textures
+            });
+        }
+        renderer.dispose();
+        renderer = null;
+    }
+
+    // Initialize Three.js with mobile optimizations
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+    renderer = new THREE.WebGLRenderer({ 
+        antialias: true, // Re-enabled antialiasing for better look
+        alpha: true,
+        powerPreference: "high-performance"
+    });
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit pixel ratio for performance
+    renderer.setClearColor(0x000000, 0);
+    container.appendChild(renderer.domElement);
+
+    const colors = [
+        0x00ff88, 0x00ccff, 0xff0099, 0xff6b35, 
+        0x8b5cf6, 0xf59e0b, 0x10b981, 0x3b82f6
+    ];
+
+    nodeObjects = [];
+    const textTextureCache = new Map();
+
+    // Smaller distribution for mobile
+    const baseDistributionRadius = 60;
+    const scalingFactor = Math.pow(nodes.length, 1/3) * 3;
+    const distributionRadius = baseDistributionRadius + scalingFactor;
+
+    nodes.forEach((node, index) => {
+        // Collision sphere - smaller for mobile
+        const geometry = new THREE.SphereGeometry(1.5, 6, 6); // Reduced complexity
+        const material = new THREE.MeshBasicMaterial({ 
+            transparent: true,
+            opacity: 0, 
+            visible: false 
+        });
+        
+        const sphere = new THREE.Mesh(geometry, material);
+
+        // More compact 3D distribution for mobile
+        const position = new THREE.Vector3(
+            (Math.random() - 0.5) * distributionRadius * 1.5,
+            (Math.random() - 0.5) * distributionRadius * 1.5,
+            (Math.random() - 0.5) * distributionRadius * 1.5
+        );
+
+        sphere.position.copy(position);
+        sphere.userData = { 
+            word: node.word, 
+            frequency: node.frequency,
+            originalPosition: sphere.position.clone()
+        };
+        
+        scene.add(sphere);
+        nodeObjects.push(sphere);
+
+        // Create mobile-optimized text labels
+        let sprite;
+        let spriteMaterial;
+        if (textTextureCache.has(node.word)) {
+            spriteMaterial = textTextureCache.get(node.word);
+            sprite = new THREE.Sprite(spriteMaterial);
+        } else {
+            const canvas = document.createElement('canvas');
+            // Adjusted canvas size for a balance between quality and performance
+            canvas.width = 1024; 
+            canvas.height = 256; 
+            const context = canvas.getContext('2d');
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Adjusted font size to make words smaller, closer to PC version
+            const fontSize = Math.max(60, Math.min(120, Math.log(node.frequency + 1) * 15)); 
+            context.font = `bold ${fontSize}px Arial`;
+            context.textAlign = 'center';
+            
+            context.shadowColor = `#${colors[node.group % colors.length].toString(16).padStart(6, '0')}`;
+            context.shadowBlur = 15; // Adjusted blur for better look
+            context.fillStyle = '#ffffff';
+            context.fillText(node.word, canvas.width / 2, canvas.height / 2);
+            
+            // REMOVED: Frequency display under words
+            /*
+            if (node.frequency > 30) {
+                context.shadowBlur = 8;
+                context.font = '40px Arial';
+                context.fillStyle = `#${colors[node.group % colors.length].toString(16).padStart(6, '0')}`;
+                context.fillText(`${node.frequency}`, canvas.width / 2, canvas.height / 2 + (fontSize / 2) + 15);
+            }
+            */
+
+            const texture = new THREE.CanvasTexture(canvas);
+            spriteMaterial = new THREE.SpriteMaterial({ 
+                map: texture, 
+                transparent: true,
+                alphaTest: 0.1 
+            });
+            sprite = new THREE.Sprite(spriteMaterial);
+            textTextureCache.set(node.word, spriteMaterial);
+        }
+        
+        sprite.position.copy(sphere.position);
+        
+        // Adjusted text scale to make words smaller, closer to PC version
+        const textScale = Math.max(25, Math.min(60, Math.log(node.frequency + 1) * 8)) * nodeSizeFactor * 0.8; // Added a factor to make words smaller
+        sprite.scale.set(textScale, textScale / 4, 1);
+        scene.add(sprite);
+        
+        sphere.userData.sprite = sprite;
+    });
+
+    // Create network connections using a single BufferGeometry for performance
+    const linePositions = [];
+    const dotPositions = [];
+    
+    if (currentLinkObject) {
+        scene.remove(currentLinkObject);
+        currentLinkObject.geometry.dispose();
+        currentLinkObject.material.dispose();
+        currentLinkObject = null;
+    }
+    if (currentDotsObject) {
+        scene.remove(currentDotsObject);
+        currentDotsObject.geometry.dispose();
+        currentDotsObject.material.dispose();
+        currentDotsObject = null;
+    }
+
+    // Reduce number of connections for mobile performance (can be adjusted)
+    const maxConnections = Math.min(links.length, nodes.length * 2);
+    const sortedLinks = links.sort((a, b) => b.strength - a.strength).slice(0, maxConnections);
+
+    sortedLinks.forEach(link => {
+        const sourceNode = nodeObjects[link.source];
+        const targetNode = nodeObjects[link.target];
+
+        if (sourceNode && targetNode) {
+            const midPoint = new THREE.Vector3().addVectors(sourceNode.position, targetNode.position).multiplyScalar(0.5);
+            const direction = new THREE.Vector3().subVectors(targetNode.position, sourceNode.position);
+            const offsetStrength = direction.length() * 0.1; // Increased offset for more curve
+            const perpendicular = new THREE.Vector3(-direction.y, direction.x, 0).normalize().multiplyScalar(offsetStrength * (Math.random() - 0.5) * 2); 
+            
+            const controlPoint = midPoint.add(perpendicular);
+
+            // Use QuadraticBezierCurve3 for smoother, more substantial lines
+            const curve = new THREE.QuadraticBezierCurve3(
+                sourceNode.position,
+                controlPoint,
+                targetNode.position
+            );
+            
+            // Increased number of points for smoother curves, closer to PC version
+            const points = curve.getPoints(Math.max(5, Math.floor(link.strength * 8))); 
+            
+            for (let i = 0; i < points.length - 1; i++) {
+                linePositions.push(points[i].x, points[i].y, points[i].z);
+                linePositions.push(points[i+1].x, points[i+1].y, points[i+1].z);
+            }
+
+            dotPositions.push(midPoint.x, midPoint.y, midPoint.z);
+        }
+    });
+
+    if (linePositions.length > 0) {
+        const lineGeometry = new THREE.BufferGeometry();
+        lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+
+        const lineMaterial = new THREE.LineBasicMaterial({ 
+            color: 0xFFFFFF,
+            transparent: true,
+            opacity: connectionOpacity,
+            blending: THREE.AdditiveBlending
+        });
+        const lines = new THREE.LineSegments(lineGeometry, lineMaterial);
+        scene.add(lines);
+        currentLinkObject = lines;
+    }
+
+    if (dotPositions.length > 0) {
+        const dotGeometry = new THREE.BufferGeometry();
+        dotGeometry.setAttribute('position', new THREE.Float32BufferAttribute(dotPositions, 3));
+        
+        // Create a circular texture for dots (as in index.html)
+        const dotCanvas = document.createElement('canvas');
+        dotCanvas.width = 32;
+        dotCanvas.height = 32;
+        const dotContext = dotCanvas.getContext('2d');
+        dotContext.beginPath();
+        dotContext.arc(16, 16, 14, 0, Math.PI * 2);
+        dotContext.fillStyle = 'white';
+        dotContext.fill();
+        const dotTexture = new THREE.CanvasTexture(dotCanvas);
+
+        // Reduced dot size by 4 times
+        const dotMaterial = new THREE.PointsMaterial({
+            color: 0xFFFFFF,
+            size: 0.75, // Reduced from 3.0 to 0.75 (3.0 / 4)
+            sizeAttenuation: true,
+            transparent: true,
+            opacity: dotOpacity,
+            map: dotTexture, // Use the circular texture
+            blending: THREE.AdditiveBlending
+        });
+        const dots = new THREE.Points(dotGeometry, dotMaterial);
+        scene.add(dots);
+        currentDotsObject = dots;
+    }
+
+    // Closer initial camera position for mobile
+    const initialCameraZ = distributionRadius * 1.2;
+    camera.position.set(0, 0, initialCameraZ); 
+    camera.lookAt(0, 0, 0);
+
+    // Simplified lighting for mobile
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+    scene.add(ambientLight);
+
+    setupMobileTouchControls();
+    setupMobileControlPanels();
+
+    if (!animationFrameId) {
+        animate();
+    }
+}
+
+let animationFrameId = null;
+
+function setupMobileControlPanels() {
+    document.getElementById('rotationSpeed').addEventListener('input', (e) => {
+        rotationSpeed = parseFloat(e.target.value);
+    });
+
+    document.getElementById('nodeSize').addEventListener('input', (e) => {
+        nodeSizeFactor = parseFloat(e.target.value);
+        nodeObjects.forEach((node, index) => {
+            if (node.userData.sprite && nodes[index]) {
+                // Re-calculate baseScale with new nodeSizeFactor
+                const baseScale = Math.max(20, Math.min(50, Math.log(nodes[index].frequency + 1) * 5));
+                const newScaleX = baseScale * nodeSizeFactor * 0.8; // Apply the additional scaling factor
+                const newScaleY = (baseScale / 4) * nodeSizeFactor * 0.8;
+                node.userData.sprite.scale.set(newScaleX, newScaleY, 1);
+            }
+        });
+    });
+
+    document.getElementById('connectionOpacity').addEventListener('input', (e) => {
+        connectionOpacity = parseFloat(e.target.value);
+        if (currentLinkObject && currentLinkObject.material) {
+            currentLinkObject.material.opacity = connectionOpacity;
+        }
+        if (currentDotsObject && currentDotsObject.material) {
+            currentDotsObject.material.opacity = connectionOpacity * 4; // Scale dot opacity with line opacity
+        }
+    });
+}
+
+function setupMobileTouchControls() {
+    const canvas = renderer.domElement;
+
+    // Touch start
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touches = e.touches;
+        
+        if (touches.length === 1) {
+            // Single touch - rotation
+            touchControls.rotating = true;
+            touchStartX = touches[0].clientX;
+            touchStartY = touches[0].clientY;
+        } else if (touches.length === 2) {
+            // Two finger touch - zoom
+            touchControls.zooming = true;
+            touchControls.rotating = false;
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
+        }
+    }, { passive: false });
+
+    // Touch move
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const touches = e.touches;
+
+        if (touches.length === 1 && touchControls.rotating) {
+            // Single touch rotation
+            const deltaX = touches[0].clientX - touchStartX;
+            const deltaY = touches[0].clientY - touchStartY;
+
+            if (scene) {
+                scene.rotation.y += deltaX * 0.008; // Slightly more sensitive for mobile
+                scene.rotation.x += deltaY * 0.008;
+            }
+
+            touchStartX = touches[0].clientX;
+            touchStartY = touches[0].clientY;
+        } else if (touches.length === 2 && touchControls.zooming) {
+            // Two finger zoom
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (lastTouchDistance > 0) {
+                const delta = distance - lastTouchDistance;
+                if (camera) {
+                    camera.position.z -= delta * 0.5;
+                    const estimatedRadius = nodeObjects.length > 0 ? 60 : 50;
+                    camera.position.z = Math.max(estimatedRadius * 0.3, Math.min(estimatedRadius * 3, camera.position.z));
+                }
+            }
+            lastTouchDistance = distance;
+        }
+    }, { passive: false });
+
+    // Touch end
+    canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        touchControls.rotating = false;
+        touchControls.zooming = false;
+        lastTouchDistance = 0;
+    }, { passive: false });
+
+    // Tap to show word details
+    canvas.addEventListener('touchend', (e) => {
+        if (e.touches.length === 0 && e.changedTouches.length === 1) {
+            // Only handle tap if it was a quick touch
+            const touch = e.changedTouches[0];
+            handleTap(touch.clientX, touch.clientY);
+        }
+    });
+
+    // Prevent context menu on long press
+    canvas.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    });
+}
+
+function handleTap(clientX, clientY) {
+    if (!camera || !renderer || !scene) return;
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    mouse.x = (clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(nodeObjects);
+
+    if (intersects.length > 0) {
+        const node = intersects[0].object;
+        const nodeData = nodes.find(n => n.word === node.userData.word && n.frequency === node.userData.frequency);
+        if (nodeData) {
+            const totalFrequency = nodes.reduce((sum, n) => sum + n.frequency, 0);
+            const percentage = ((nodeData.frequency / totalFrequency) * 100).toFixed(2);
+            const rank = nodes.findIndex(n => n.word === nodeData.word) + 1;
+            showCustomMessage(`🔤 "${nodeData.word}"\n📊 Used ${nodeData.frequency} times\n📈 ${percentage}% of total\n🏆 Rank #${rank}`);
+        }
+    }
+}
+
+function animate() {
+    animationFrameId = requestAnimationFrame(animate);
+
+    if (scene && autoRotation && !touchControls.rotating) {
+        scene.rotation.y += rotationSpeed;
+    }
+
+    // Simplified floating animation for mobile performance
+    if (nodeObjects.length > 0) {
+        const time = Date.now() * 0.0005; // Adjusted to match PC speed
+        nodeObjects.forEach((node, index) => {
+            // Animate all nodes for better visual consistency
+            const floatSpeed = 0.5 + (index % 5) * 0.05; 
+            const floatAmplitude = 5 + (index % 3) * 0.5; 
+            
+            const originalPos = node.userData.originalPosition;
+            node.position.x = originalPos.x + Math.sin(time * floatSpeed + index) * floatAmplitude;
+            node.position.y = originalPos.y + Math.cos(time * floatSpeed * 1.3 + index) * floatAmplitude;
+            node.position.z = originalPos.z + Math.sin(time * floatSpeed * 0.7 + index) * floatAmplitude;
+            
+            if (node.userData.sprite) {
+                node.userData.sprite.position.copy(node.position);
+                
+                // Add pulse effect for high-frequency words
+                if (nodes[index] && nodes[index].frequency > 50) {
+                    const pulse = 1 + Math.sin(time * 3 + index) * 0.1;
+                    const baseScale = Math.max(20, Math.min(50, Math.log(nodes[index].frequency + 1) * 5)) * nodeSizeFactor * 0.8; 
+                    node.userData.sprite.scale.set(baseScale * pulse, (baseScale / 4) * pulse, 1);
+                }
+            }
+        });
+    }
+
+    renderer.render(scene, camera);
+}
+
+// Handle window resize with debouncing for mobile
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        if (camera && renderer) {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    }, 100);
+});
+
+// Optimize for mobile browsers
+window.addEventListener('orientationchange', () => {
+    setTimeout(() => {
+        if (camera && renderer) {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    }, 500);
+});
+
+// Prevent zoom on double tap
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function (event) {
+    const now = (new Date()).getTime();
+    if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+    }
+    lastTouchEnd = now;
+}, false);
+
+// Show welcome message on page load
+document.addEventListener('DOMContentLoaded', () => {
+    welcomeOverlay.style.display = 'flex';
+});
+
+// Hide welcome message when "Continue to Mobile" is clicked
+continueMobileBtn.addEventListener('click', () => {
+    welcomeOverlay.style.display = 'none';
+});
+</script>
+</body>
+</html>
